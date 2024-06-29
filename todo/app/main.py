@@ -27,9 +27,9 @@ engine = create_engine(
     connection_string, connect_args={}, pool_recycle=300
 )
 
-#engine = create_engine(
-#    connection_string, connect_args={"sslmode": "require"}, pool_recycle=300
-#)
+engine = create_engine(
+   connection_string, connect_args={"sslmode": "require"}, pool_recycle=300
+)
 
 
 def create_db_and_tables()->None:
@@ -64,7 +64,7 @@ async def consume_messages(topic, bootstrap_servers):
 @asynccontextmanager
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
-    # loop.run_until_complete(consume_messages('todos', 'broker:19092'))
+    loop.run_until_complete(consume_messages('todos', 'broker:19092'))
     task = asyncio.create_task(consume_messages('todos', 'broker:19092'))
     create_db_and_tables()
     yield
@@ -86,31 +86,31 @@ def get_session():
 
 @app.get("/")
 def read_root():
-    return {"Hello": "PanaCloud"}
+    return {"Hello": "todo Service"}
 
-# # Kafka Producer as a dependency
-# async def get_kafka_producer():
-#     producer = AIOKafkaProducer(bootstrap_servers='broker:19092')
-#     await producer.start()
-#     try:
-#         yield producer
-#     finally:
-#         await producer.stop()
+# Kafka Producer as a dependency
+async def get_kafka_producer():
+    producer = AIOKafkaProducer(bootstrap_servers='broker:19092')
+    await producer.start()
+    try:
+        yield producer
+    finally:
+        await producer.stop()
 
-# @app.post("/todos/", response_model=Todo)
-# async def create_todo(todo: Todo, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)])->Todo:
-#         todo_dict = {field: getattr(todo, field) for field in todo.dict()}
-#         todo_json = json.dumps(todo_dict).encode("utf-8")
-#         print("todoJSON:", todo_json)
-#         # Produce message
-#         await producer.send_and_wait("todos", todo_json)
-#         # session.add(todo)
-#         # session.commit()
-#         # session.refresh(todo)
-#         return todo
+@app.post("/todos/", response_model=Todo)
+async def create_todo(todo: Todo, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)])->Todo:
+        todo_dict = {field: getattr(todo, field) for field in todo.dict()}
+        todo_json = json.dumps(todo_dict).encode("utf-8")
+        print("todoJSON:", todo_json)
+        # Produce message
+        await producer.send_and_wait("todos", todo_json)
+        session.add(todo)
+        session.commit()
+        session.refresh(todo)
+        return todo
 
 
-# @app.get("/todos/", response_model=list[Todo])
-# def read_todos(session: Annotated[Session, Depends(get_session)]):
-#         todos = session.exec(select(Todo)).all()
-#         return todos
+@app.get("/todos/", response_model=list[Todo])
+def read_todos(session: Annotated[Session, Depends(get_session)]):
+        todos = session.exec(select(Todo)).all()
+        return todos
