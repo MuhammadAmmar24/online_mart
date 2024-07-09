@@ -64,20 +64,15 @@ async def consume_messages(topic, bootstrap_servers):
 @asynccontextmanager
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
-    loop.run_until_complete(consume_messages('todos', 'broker:19092'))
-    task = asyncio.create_task(consume_messages('todos', 'broker:19092'))
+    # loop.run_until_complete(consume_messages('todos', 'broker:19092'))
+    # task = asyncio.create_task(consume_messages('todos', 'broker:19092'))
     create_db_and_tables()
     yield
 
 
 app = FastAPI(lifespan=lifespan, title="Hello World API with DB", 
     version="0.0.1",
-    servers=[
-        {
-            "url": "http://127.0.0.1:8000", # ADD NGROK URL Here Before Creating GPT Action
-            "description": "Development Server"
-        }
-        ])
+    )
 
 def get_session():
     with Session(engine) as session:
