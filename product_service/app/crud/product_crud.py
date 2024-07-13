@@ -33,10 +33,11 @@ def delete_product_by_id(product_id: int, session: Session) -> dict:
 
     # 1. Get the Product 
     product = get_product_by_id(product_id,session)
-    
+
     # 2. Delete the Product
     session.delete(product)
     session.commit()
+
     return {"message": "Product Deleted Successfully"}
 
 # Update Product by id

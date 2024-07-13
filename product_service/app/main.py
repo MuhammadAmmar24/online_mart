@@ -47,7 +47,7 @@ def call_add_product(
 
 
 @app.get('/product/all', response_model=list[Product])
-def call_all_product(session: Annotated[Session, Depends(get_session)]):
+def call_get_all_product(session: Annotated[Session, Depends(get_session)]):
     return  get_all_products(session)
 
 
