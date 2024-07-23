@@ -9,8 +9,9 @@ from app.deps import get_session
 from app.models.product_model import Product, ProductUpdate
 from app.crud.product_crud import add_product, get_all_products, get_product_by_id, delete_product_by_id, update_product
 
+
 def create_db_and_tables() -> None:
-    print(f"In create_db function...   engine is {engine}")
+    print(f"In create_db function...")
     SQLModel.metadata.create_all(engine)
     print("Completed create_db function...")
     
