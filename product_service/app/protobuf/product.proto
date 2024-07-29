@@ -1,15 +1,6 @@
 syntax = "proto3";
 
 message Product {
-    optional int32 id = 1;
-    optional string title = 2;
-    optional string description = 3;
-    optional string category = 4;
-    optional float price = 5;
-    optional int32 discount = 6;
-    optional float quantity = 7;
-    optional string brand = 8;
-    optional float weight = 9;
-    optional string expiry = 10;
-    optional string sku = 11;
+ int32 id = 1;
+  string content = 2;
 }
