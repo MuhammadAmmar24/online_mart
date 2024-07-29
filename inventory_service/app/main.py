@@ -74,12 +74,12 @@ def call_delete_inventory_item_by_id(item_id: int,
         raise HTTPException(status_code=500, detail=str(e))
     
 
-# @app.patch('/inventory/{product_id}', response_model=InventoryItem)
-# def call_update_product(product_id: int,
+# @app.patch('/inventory/{id}', response_model=InventoryItem)
+# def call_update_product(id: int,
 #                               product: InventoryItemUpdate,
 #                              session: Annotated[Session, Depends(get_session)]):
 #     try:
-#         return  update_product(product_id=product_id, to_update_product_data=product, session=session)
+#         return  update_product(id=id, to_update_product_data=product, session=session)
 #     except HTTPException as e:
 #         raise e
 #     except Exception as e:

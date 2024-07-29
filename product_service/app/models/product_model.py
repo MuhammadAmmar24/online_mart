@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field
 
 
 class Product(SQLModel, table=True):
-    product_id : int | None = Field(default=None, primary_key=True)
+    id : int | None = Field(default=None, primary_key=True)
     title : str
     description: str
     category : str

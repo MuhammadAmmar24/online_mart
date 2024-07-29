@@ -21,18 +21,18 @@ def get_all_products(session: Session) -> list[Product]:
 
 
 # Get Product by id
-def get_product_by_id(product_id: int, session: Session) -> Product:
-    product = session.exec(select(Product).where(Product.id == product_id)).one_or_none()
+def get_product_by_id(id: int, session: Session) -> Product:
+    product = session.exec(select(Product).where(Product.id == id)).one_or_none()
     if product is None:
-        raise HTTPException(status_code=404, detail=f"No Product found with the id : {product_id}")
+        raise HTTPException(status_code=404, detail=f"No Product found with the id : {id}")
     return product
     
 
 # Delete Product by id
-def delete_product_by_id(product_id: int, session: Session) -> dict:
+def delete_product_by_id(id: int, session: Session) -> dict:
 
     # 1. Get the Product 
-    product = get_product_by_id(product_id,session)
+    product = get_product_by_id(id,session)
 
     # 2. Delete the Product
     session.delete(product)
@@ -41,10 +41,10 @@ def delete_product_by_id(product_id: int, session: Session) -> dict:
     return {"message": "Product Deleted Successfully"}
 
 # Update Product by id
-def update_product(product_id: int, to_update_product_data: ProductUpdate, session: Session) -> Product:
+def update_product(id: int, to_update_product_data: ProductUpdate, session: Session) -> Product:
 
     # 1. Get the Product 
-    product = get_product_by_id(product_id,session)
+    product = get_product_by_id(id,session)
     
     # 2. Upload the Product
     hero_data = to_update_product_data.model_dump(exclude_unset=True)
