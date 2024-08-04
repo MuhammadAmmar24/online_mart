@@ -8,3 +8,4 @@ class InventoryItem(SQLModel, table=True):
     quantity: int 
     status: str
     
+1

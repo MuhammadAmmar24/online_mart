@@ -5,11 +5,15 @@ from app.models.product_model import Product, ProductUpdate
 
 
 # Add a new Product
-def add_product(product_data: Product, session: Session) -> Product:
-    session.add(product_data)
-    session.commit()
-    session.refresh(product_data)
-    return product_data
+def add_product(product_data, session: Session) -> Product:
+    try:
+        session.add(product_data)
+        session.commit()
+        session.refresh(product_data)
+        return product_data
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     
 
 # Get all Products
@@ -26,7 +30,6 @@ def get_product_by_id(id: int, session: Session) -> Product:
     if product is None:
         raise HTTPException(status_code=404, detail=f"No Product found with the id : {id}")
     return product
-    
 
 # Delete Product by id
 def delete_product_by_id(id: int, session: Session) -> dict:
@@ -52,6 +55,13 @@ def update_product(id: int, to_update_product_data: ProductUpdate, session: Sess
     session.add(product)
     session.commit()
     session.refresh(product)
+    return product
+
+# Check if product exist or not
+def validate_id(id: int, session: Session) -> Product:
+    product = session.exec(select(Product).where(Product.id == id)).one_or_none()
+    if not product:
+        return None  
     return product
 
 

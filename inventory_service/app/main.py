@@ -1,87 +1,82 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
-from typing import Annotated, AsyncGenerator
+from app.protobuf import product_pb2
 from sqlmodel import Session, SQLModel
+from typing import Annotated, AsyncGenerator
+from aiokafka import AIOKafkaProducer
+import asyncio
 
 from app import settings
 from app.db_engine import engine
-from app.deps import get_session
-from app.models.inventory_model import InventoryItem
-from app.crud.inventory_crud import add_inventory_item, get_all_inventory_items, get_inventory_item_by_id, delete_inventory_item_by_id
+from app.deps import get_session, kafka_producer
+from inventory_service.app.models.inventory_model import Product, ProductUpdate
+from inventory_service.app.crud.inventory_crud import get_all_products, get_product_by_id, validate_id
+from inventory_service.app.kafka.producers.inventory_producer import produce_message
+from inventory_service.app.kafka.consumers.inventory_consumer import consume_products
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def create_db_and_tables() -> None:
-    print(f"In create_db function...   engine is {engine}")
     SQLModel.metadata.create_all(engine)
-    print("Completed create_db function...")
-    
-
+    logger.info("Database tables created successfully")
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    print("Inventory Service Starting...")
+async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
+    logger.info("Starting lifespan context manager")
     create_db_and_tables()
-    print("DB done Successfully!")
+    task = asyncio.create_task(consume_products(
+        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT))
     yield
-    print("Inventory Service Closing...")
-
+    logger.info("Product Service Closing...")
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Inventory Service",
+    title="Product Service",
     version="0.0.1",
 )
 
-
-
 @app.get('/')
 def start():
-    return {"message": "Inventory Service"}
+    return {"message": "Product Service"}
 
-@app.post('/inventory', response_model=InventoryItem)
-def call_add_inventory_item( 
-    inventory_item: InventoryItem, 
-    session: Annotated[Session, Depends(get_session)]):
-    new_inventory_item = add_inventory_item(inventory_item, session)
-    return new_inventory_item
+@app.post('/product', response_model=Product)
+async def call_add_product(
+    product: Product, 
+    session: Annotated[Session, Depends(get_session)], 
+    producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+    existing_product = validate_id(product.id, session)
 
-
-
-@app.get('/inventory/all', response_model=list[InventoryItem])
-def call_get_all_inventory_items(session: Annotated[Session, Depends(get_session)]):
-    return  get_all_inventory_items(session)
-
-
-@app.get('/inventory/{item_id}', response_model=InventoryItem)
-def call_get_inventory_item_by_id(item_id: int, 
-                             session: Annotated[Session, Depends(get_session)]):
-    try:
-        return  get_inventory_item_by_id(inventory_item_id=item_id, session=session)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if existing_product:
+        raise HTTPException(status_code=400, detail=f"Product with ID {product.id} already exists")
     
+    await produce_message(product, product_pb2.OperationType.CREATE, producer)
+    return product
 
+@app.get('/product/all', response_model=list[Product])
+def call_get_all_product(session: Annotated[Session, Depends(get_session)]):
 
-@app.delete('/inventory/{item_id}', response_model=dict)
-def call_delete_inventory_item_by_id(item_id: int, 
-                             session: Annotated[Session, Depends(get_session)]):
-    try:
-        return  delete_inventory_item_by_id(inventory_item_id=item_id, session=session)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return get_all_products(session)
+
+@app.get('/product/{id}', response_model=Product)
+def call_get_product_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
     
+    return get_product_by_id(id=id, session=session)
 
-# @app.patch('/inventory/{id}', response_model=InventoryItem)
-# def call_update_product(id: int,
-#                               product: InventoryItemUpdate,
-#                              session: Annotated[Session, Depends(get_session)]):
-#     try:
-#         return  update_product(id=id, to_update_product_data=product, session=session)
-#     except HTTPException as e:
-#         raise e
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-      
+@app.delete('/product/{id}', response_model=dict)
+async def call_delete_product_by_id(id: int, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+
+    call_get_product_by_id(id, session)
+    await produce_message(Product(id=id), product_pb2.OperationType.DELETE, producer)
+
+    return {"deleted_id": id}
+
+@app.patch('/product/{id}', response_model=Product)
+async def call_update_product(id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+
+    call_get_product_by_id(id, session)
+    updated_product = Product(id=id, **product.dict())
+    await produce_message(updated_product, product_pb2.OperationType.UPDATE, producer)
+    
+    return updated_product

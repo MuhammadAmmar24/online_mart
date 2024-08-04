@@ -1,58 +1,68 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select, asc
 
-from app.models.inventory_model import InventoryItem
+from inventory_service.app.models.inventory_model import Product, ProductUpdate
 
 
-# Add a new Inventory to the database
-def add_inventory_item(inventory_item_data: InventoryItem, session: Session) -> InventoryItem:
-    print("Adding inventory to the Database")
-    session.add(inventory_item_data)
+# Add a new Product
+def add_product(product_data, session: Session) -> Product:
+    try:
+        session.add(product_data)
+        session.commit()
+        session.refresh(product_data)
+        return product_data
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+# Get all Products
+def get_all_products(session: Session) -> list[Product]:
+    all_products = session.exec(select(Product).order_by(asc(Product.id)))
+    if all_products is None:
+        raise HTTPException(status_code=404, detail="No Product Found")
+    return all_products
+
+
+# Get Product by id
+def get_product_by_id(id: int, session: Session) -> Product:
+    product = session.exec(select(Product).where(Product.id == id)).one_or_none()
+    if product is None:
+        raise HTTPException(status_code=404, detail=f"No Product found with the id : {id}")
+    return product
+
+# Delete Product by id
+def delete_product_by_id(id: int, session: Session) -> dict:
+
+    # 1. Get the Product 
+    product = get_product_by_id(id,session)
+
+    # 2. Delete the Product
+    session.delete(product)
     session.commit()
-    session.refresh(inventory_item_data)
-    return inventory_item_data
+
+    return {"message": "Product Deleted Successfully"}
+
+# Update Product by id
+def update_product(id: int, to_update_product_data: ProductUpdate, session: Session) -> Product:
+
+    # 1. Get the Product 
+    product = get_product_by_id(id,session)
     
-
-# Get all Inventory from the database
-def get_all_inventory_items(session: Session) -> list[InventoryItem]:
-    all_InventoryItems = session.exec(select(InventoryItem).order_by(asc(InventoryItem.id)))
-    if all_InventoryItems is None:
-        raise HTTPException(status_code=404, detail="No Inventory Item Found")
-    return all_InventoryItems
-
-
-# Get an Inventory by ID 
-def get_inventory_item_by_id(inventory_item_id: int, session: Session) -> InventoryItem:
-    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
-    if InventoryItem is None:
-        raise HTTPException(status_code=404, detail=f"No Inventory item found with the id : {inventory_item_id}")
-    return inventory_item
-    
-
-# Delete Inventory by ID
-def delete_inventory_item_by_id(inventory_item_id: int, session: Session) -> dict:
-
-    # 1. Get the InventoryItem 
-    inventory_item = get_inventory_item_by_id(inventory_item_id,session)
-    
-    # 2. Delete the InventoryItem
-    session.delete(inventory_item)
+    # 2. Upload the Product
+    hero_data = to_update_product_data.model_dump(exclude_unset=True)
+    product.sqlmodel_update(hero_data)
+    session.add(product)
     session.commit()
-    return {"message": "Inventory Item Deleted Successfully"}
+    session.refresh(product)
+    return product
+
+# Check if product exist or not
+def validate_id(id: int, session: Session) -> Product:
+    product = session.exec(select(Product).where(Product.id == id)).one_or_none()
+    if not product:
+        return None  
+    return product
 
 
-# # Update InventoryItem by id
-# def update_InventoryItem(InventoryItem_id: int, to_update_InventoryItem_data: InventoryItemUpdate, session: Session) -> InventoryItem:
-
-#     # 1. Get the InventoryItem 
-#     InventoryItem = get_InventoryItem_by_id(InventoryItem_id,session)
-    
-#     # 2. Upload the InventoryItem
-#     hero_data = to_update_InventoryItem_data.model_dump(exclude_unset=True)
-#     InventoryItem.sqlmodel_update(hero_data)
-#     session.add(InventoryItem)
-#     session.commit()
-#     session.refresh(InventoryItem)
-#     return InventoryItem
-
-
+# Validate Product by id
