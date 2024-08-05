@@ -2,8 +2,8 @@ import logging
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError, KafkaError
 from fastapi import HTTPException
-from inventory_service.app.models.inventory_model import Product, ProductUpdate
-from inventory_service.app.crud.inventory_crud import add_product, update_product, delete_product_by_id
+from app.models.inventory_model import Product, ProductUpdate
+from app.crud.inventory_crud import add_product, update_product, delete_product_by_id
 from app.deps import get_session
 from app.protobuf import product_pb2
 import asyncio
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
 RETRY_INTERVAL = 10  # seconds
 
-async def process_message(protobuf_product: product_pb2.Product):
+async def process_message(protobuf_product: product_pb2.Product, operation: str):
     try:
         sqlmodel_product = Product(
             id=protobuf_product.id,
@@ -33,19 +33,19 @@ async def process_message(protobuf_product: product_pb2.Product):
         logger.info(f"Converted SQLModel Product Data: {sqlmodel_product}")
 
         with next(get_session()) as session:
-            if protobuf_product.operation == product_pb2.OperationType.CREATE:
+            if operation == "create":
                 db_insert_product = add_product(sqlmodel_product, session=session)
                 logger.info(f"DB Inserted Product: {db_insert_product}")
 
-            elif protobuf_product.operation == product_pb2.OperationType.UPDATE:
+            elif operation == "update":
                 db_update_product = update_product(
                     sqlmodel_product.id, ProductUpdate(**sqlmodel_product.dict()), session=session)
                 logger.info(f"DB Updated Product: {db_update_product}")
 
-            elif protobuf_product.operation == product_pb2.OperationType.DELETE:
+            elif operation == "delete":
                 db_delete_product = delete_product_by_id(sqlmodel_product.id, session=session)
                 logger.info(f"DB Deleted Product: {db_delete_product}")
-                
+
     except HTTPException as e:
         logger.error(f"HTTPException: {e.detail}")
         raise
@@ -53,7 +53,7 @@ async def process_message(protobuf_product: product_pb2.Product):
         logger.error(f"Exception: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def consume_products(topic, bootstrap_servers, group_id):
+async def consume_inventory_items(topic, bootstrap_servers, group_id):
     retries = 0
 
     while retries < MAX_RETRIES:
@@ -82,12 +82,16 @@ async def consume_products(topic, bootstrap_servers, group_id):
         async for msg in consumer:
             logger.info(f"Received message on topic: {msg.topic}")
             logger.info(f"Message Value: {msg.value}")
+            logger.info(f"Message key: {msg.key}")
 
             protobuf_product = product_pb2.Product()
             protobuf_product.ParseFromString(msg.value)
             logger.info(f"Consumed Product Data: {protobuf_product}")
 
-            await process_message(protobuf_product)
+            operation = msg.key.decode('utf-8')  # Decode the operation key
+            logger.info(f"Operation: {operation}")
+
+            await process_message(protobuf_product, operation)
     except KafkaError as e:
         logger.error(f"Error while consuming message: {e}")
     finally:

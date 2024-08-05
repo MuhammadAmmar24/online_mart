@@ -10,10 +10,10 @@ import asyncio
 from app import settings
 from app.db_engine import engine
 from app.deps import get_session, kafka_producer
-from inventory_service.app.models.inventory_model import Product, ProductUpdate
-from inventory_service.app.crud.inventory_crud import get_all_products, get_product_by_id, validate_id
+from inventory_service.app.models.inventory_model import InventoryItem, UpdateInventoryItem
+from inventory_service.app.crud.inventory_crud import get_all_inventory_items, get_inventory_item_by_id, validate_id
 from inventory_service.app.kafka.producers.inventory_producer import produce_message
-from inventory_service.app.kafka.consumers.inventory_consumer import consume_products
+from inventory_service.app.kafka.consumers.inventory_consumer import consume_inventory_items
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,59 +24,72 @@ def create_db_and_tables() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
-    logger.info("Starting lifespan context manager")
+    logger.info("Inventory Service Starting...")
     create_db_and_tables()
-    task = asyncio.create_task(consume_products(
-        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT))
+    task = asyncio.create_task(consume_inventory_items(
+        settings.KAFKA_INVENTORY_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY))
     yield
-    logger.info("Product Service Closing...")
+    logger.info("Inventory Service Closing...")
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Product Service",
+    title="Inventory Service",
     version="0.0.1",
 )
 
 @app.get('/')
 def start():
-    return {"message": "Product Service"}
+    return {"message": "Inventory Service"}
 
-@app.post('/product', response_model=Product)
-async def call_add_product(
-    product: Product, 
+@app.post('/inventory', response_model=InventoryItem)
+async def call_add_inventory_item(
+    inventory_item: InventoryItem, 
     session: Annotated[Session, Depends(get_session)], 
     producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
-    existing_product = validate_id(product.id, session)
 
-    if existing_product:
-        raise HTTPException(status_code=400, detail=f"Product with ID {product.id} already exists")
+    existing_inventory_item = validate_id(inventory_item.id, session)
+
+    if existing_inventory_item:
+        raise HTTPException(status_code=400, detail=f"Inventory Item with ID {inventory_item.id} already exists")
+    await produce_message(inventory_item, producer, "create")
+    logger.info(f"Produced message: {inventory_item}")
+
     
-    await produce_message(product, product_pb2.OperationType.CREATE, producer)
-    return product
+    return inventory_item
 
-@app.get('/product/all', response_model=list[Product])
-def call_get_all_product(session: Annotated[Session, Depends(get_session)]):
 
-    return get_all_products(session)
 
-@app.get('/product/{id}', response_model=Product)
-def call_get_product_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
+@app.get('/inventory/all', response_model=list[InventoryItem])
+def call_get_all_inventory_items(session: Annotated[Session, Depends(get_session)]):
+
+    return get_all_inventory_items(session)
+
+
+
+@app.get('/inventory/{id}', response_model=InventoryItem)
+def call_get_inventory_item_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
     
-    return get_product_by_id(id=id, session=session)
+    return get_inventory_item_by_id(id=id, session=session)
 
-@app.delete('/product/{id}', response_model=dict)
-async def call_delete_product_by_id(id: int, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
 
-    call_get_product_by_id(id, session)
-    await produce_message(Product(id=id), product_pb2.OperationType.DELETE, producer)
+
+@app.patch('/inventory/{id}', response_model=InventoryItem)
+async def call_update_inventory_item(id: int, inventory_item: UpdateInventoryItem, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+
+    call_get_inventory_item_by_id(id, session)
+    updated_inventory_item = InventoryItem(id=id, **inventory_item.dict())
+    await produce_message(updated_inventory_item, producer, "update")
+    
+    return updated_inventory_item
+
+
+
+@app.delete('/inventory/{id}', response_model=dict)
+async def call_delete_inventory_item_by_id(id: int, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+
+    call_get_inventory_item_by_id(id, session)
+    await produce_message(InventoryItem(id=id), producer, "delete")
 
     return {"deleted_id": id}
 
-@app.patch('/product/{id}', response_model=Product)
-async def call_update_product(id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
 
-    call_get_product_by_id(id, session)
-    updated_product = Product(id=id, **product.dict())
-    await produce_message(updated_product, product_pb2.OperationType.UPDATE, producer)
-    
-    return updated_product

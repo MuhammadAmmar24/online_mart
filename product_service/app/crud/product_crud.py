@@ -58,11 +58,8 @@ def update_product(id: int, to_update_product_data: ProductUpdate, session: Sess
     return product
 
 # Check if product exist or not
-def validate_id(id: int, session: Session) -> Product:
+def validate_id(id: int, session: Session) -> Product | None:
     product = session.exec(select(Product).where(Product.id == id)).one_or_none()
     if not product:
         return None  
     return product
-
-
-# Validate Product by id

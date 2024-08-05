@@ -1,21 +1,16 @@
 syntax = "proto3";
 
-enum OperationType {
-    CREATE = 0;
-    UPDATE = 1;
-    DELETE = 2;
+// Enum for inventory status
+enum InventoryStatus {
+    IN_STOCK = 0;
+    OUT_OF_STOCK = 1;
+    RESERVED = 2;
 }
 
-message Product {
-    optional int32 id = 1;
-    optional string title = 2;
-    optional string description = 3;
-    optional string category = 4;
-    optional float price = 5;
-    optional int32 discount = 6;
-    optional float quantity = 7;
-    optional string brand = 8;
-    optional float weight = 9;
-    optional string expiry = 10;
-    optional OperationType operation = 11;
+// Message for inventory item
+message InventoryItem {
+    int32 id = 1;
+    int32 product_id = 2;
+    int32 quantity = 3;
+    InventoryStatus status = 4;
 }
