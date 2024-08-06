@@ -2,8 +2,8 @@ import logging
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError, KafkaError
 from fastapi import HTTPException
-from app.models.inventory_model import Product, ProductUpdate
-from app.crud.inventory_crud import add_product, update_product, delete_product_by_id
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate, InventoryStatus
+from app.crud.inventory_crud import add_inventory_item, update_inventory_item, delete_inventory_item_by_id, get_inventory_item_by_product_id
 from app.deps import get_session
 from app.protobuf import product_pb2
 import asyncio
@@ -15,36 +15,44 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
 RETRY_INTERVAL = 10  # seconds
 
-async def process_message(protobuf_product: product_pb2.Product, operation: str):
+async def process_message(protobuf_product_item: product_pb2.Product, operation: str):
+    
     try:
-        sqlmodel_product = Product(
-            id=protobuf_product.id,
-            title=protobuf_product.title,
-            description=protobuf_product.description,
-            category=protobuf_product.category,
-            price=protobuf_product.price,
-            discount=protobuf_product.discount,
-            quantity=protobuf_product.quantity,
-            brand=protobuf_product.brand,
-            weight=protobuf_product.weight,
-            expiry=protobuf_product.expiry,
-        )
-
-        logger.info(f"Converted SQLModel Product Data: {sqlmodel_product}")
-
         with next(get_session()) as session:
+
+            inventory_item = get_inventory_item_by_product_id(protobuf_product_item.id, session)
+
             if operation == "create":
-                db_insert_product = add_product(sqlmodel_product, session=session)
-                logger.info(f"DB Inserted Product: {db_insert_product}")
+                if inventory_item:
+                    logger.info(f"Inventory item already exists for product_id {protobuf_product_item.id}")
+                else:
+                    new_inventory_item = InventoryItem(
+                        product_id=protobuf_product_item.id,
+                        quantity=protobuf_product_item.quantity,
+                        status=InventoryStatus.IN_STOCK if protobuf_product_item.quantity > 0 else InventoryStatus.OUT_OF_STOCK
+                    )
+                    db_insert_inventory_item = add_inventory_item(new_inventory_item, session=session)
+                    logger.info(f"DB Inserted Inventory Item: {db_insert_inventory_item}")
 
             elif operation == "update":
-                db_update_product = update_product(
-                    sqlmodel_product.id, ProductUpdate(**sqlmodel_product.dict()), session=session)
-                logger.info(f"DB Updated Product: {db_update_product}")
+                if inventory_item:
+                    update_data = InventoryItemUpdate(
+                        quantity=protobuf_product_item.quantity,
+                        status=InventoryStatus.IN_STOCK if protobuf_product_item.quantity > 0 else InventoryStatus.OUT_OF_STOCK
+                    )
+                    db_update_inventory_item = update_inventory_item(
+                        inventory_item.id, update_data, session=session
+                    )
+                    logger.info(f"DB Updated Inventory Item: {db_update_inventory_item}")
+                else:
+                    logger.error(f"Inventory item not found for product_id {protobuf_product_item.id}")
 
             elif operation == "delete":
-                db_delete_product = delete_product_by_id(sqlmodel_product.id, session=session)
-                logger.info(f"DB Deleted Product: {db_delete_product}")
+                if inventory_item:
+                    db_delete_inventory_item = delete_inventory_item_by_id(inventory_item.id, session=session)
+                    logger.info(f"DB Deleted Inventory Item: {db_delete_inventory_item}")
+                else:
+                    logger.error(f"Inventory item not found for product_id {protobuf_product_item.id}")
 
     except HTTPException as e:
         logger.error(f"HTTPException: {e.detail}")
@@ -53,21 +61,21 @@ async def process_message(protobuf_product: product_pb2.Product, operation: str)
         logger.error(f"Exception: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def consume_inventory_items(topic, bootstrap_servers, group_id):
+async def consume_product_updates(topic, bootstrap_servers, group_id):
     retries = 0
 
     while retries < MAX_RETRIES:
         try:
             consumer = AIOKafkaConsumer(
-                topic, 
+                topic,
                 bootstrap_servers=bootstrap_servers,
                 group_id=group_id,
                 auto_offset_reset='earliest',
             )
 
-            logger.info("Consumer created, attempting to start...")
+            logger.info("Inventory Consumer created, attempting to start...")
             await consumer.start()
-            logger.info("Consumer started successfully")
+            logger.info("Inventory Consumer started successfully")
             break
         except KafkaConnectionError as e:
             retries += 1
@@ -84,16 +92,16 @@ async def consume_inventory_items(topic, bootstrap_servers, group_id):
             logger.info(f"Message Value: {msg.value}")
             logger.info(f"Message key: {msg.key}")
 
-            protobuf_product = product_pb2.Product()
-            protobuf_product.ParseFromString(msg.value)
-            logger.info(f"Consumed Product Data: {protobuf_product}")
+            protobuf_product_item = product_pb2.Product()
+            protobuf_product_item.ParseFromString(msg.value)
+            logger.info(f"Consumed Product Data: {protobuf_product_item}")
 
             operation = msg.key.decode('utf-8')  # Decode the operation key
             logger.info(f"Operation: {operation}")
 
-            await process_message(protobuf_product, operation)
+            await process_message(protobuf_product_item, operation)
     except KafkaError as e:
         logger.error(f"Error while consuming message: {e}")
     finally:
-        logger.info("Stopping consumer")
+        logger.info("Stopping Inventory Consumer")
         await consumer.stop()

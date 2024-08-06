@@ -53,8 +53,10 @@ async def call_add_product(
 
     if existing_product:
         raise HTTPException(status_code=400, detail=f"Product with ID {product.id} already exists")
+    
     await produce_message(product, producer, "create")
     logger.info(f"Produced message: {product}")
+
     return product
 
 
@@ -62,7 +64,6 @@ async def call_add_product(
 
 @app.get('/product/all', response_model=list[Product])
 def call_get_all_product(session: Annotated[Session, Depends(get_session)]):
-
     return get_all_products(session)
 
 

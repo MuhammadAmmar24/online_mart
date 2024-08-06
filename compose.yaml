@@ -31,32 +31,32 @@ services:
 
 
 
-# # Inventory Service
-#   inventory_service:
-#     build:
-#       context: ./inventory_service
-#       dockerfile: Dockerfile.dev
-#     volumes:
-#       - ./inventory_service:/code 
-#     depends_on:
-#       - postgres_inventory_db
-#       - broker
-#     ports:
-#       - "8007:8000"    
+# Inventory Service
+  inventory_service:
+    build:
+      context: ./inventory_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./inventory_service:/code 
+    depends_on:
+      - postgres_inventory_db
+      - broker
+    ports:
+      - "8007:8000"    
 
-# # Inventory Database
-#   postgres_inventory_db:
-#     image: postgres:latest 
-#     restart: always
-#     container_name: PostgresInventoryCont
-#     environment:
-#         - POSTGRES_USER=ammar
-#         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=inventory_db
-#     ports:
-#         - '5437:5432'
-#     volumes:
-#         - postgres_inventory_db:/var/lib/postgresql/data
+# Inventory Database
+  postgres_inventory_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresInventoryCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=inventory_db
+    ports:
+        - '5437:5432'
+    volumes:
+        - postgres_inventory_db:/var/lib/postgresql/data
 
 
 

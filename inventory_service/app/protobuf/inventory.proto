@@ -1,13 +1,14 @@
 syntax = "proto3";
 
+package inventory;
+
 // Enum for inventory status
 enum InventoryStatus {
     IN_STOCK = 0;
     OUT_OF_STOCK = 1;
-    RESERVED = 2;
 }
 
-// Message for inventory item
+// Message for InventoryItem
 message InventoryItem {
     int32 id = 1;
     int32 product_id = 2;
