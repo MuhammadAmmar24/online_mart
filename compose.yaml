@@ -2,32 +2,32 @@
 name: mart
 services:
 
-# Product Service
-  product_service:
-    build:
-      context: ./product_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./product_service:/code 
-    depends_on:
-      - postgres_product_db
-      - broker
-    ports:
-      - "8006:8000"    
+# # Product Service
+#   product_service:
+#     build:
+#       context: ./product_service
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./product_service:/code 
+#     depends_on:
+#       - postgres_product_db
+#       - broker
+#     ports:
+#       - "8006:8000"    
 
-# Product Database
-  postgres_product_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresProductCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=product_db
-    ports:
-        - '5436:5432'
-    volumes:
-        - postgres_product_db:/var/lib/postgresql/data
+# # Product Database
+#   postgres_product_db:
+#     image: postgres:latest 
+#     restart: always
+#     container_name: PostgresProductCont
+#     environment:
+#         - POSTGRES_USER=ammar
+#         - POSTGRES_PASSWORD=mypassword
+#         - POSTGRES_DB=product_db
+#     ports:
+#         - '5436:5432'
+#     volumes:
+#         - postgres_product_db:/var/lib/postgresql/data
 
 
 
@@ -60,32 +60,32 @@ services:
 
 
 
-# # Order Service
-#   order_service:
-#     build:
-#       context: ./order_service
-#       dockerfile: Dockerfile.dev
-#     volumes:
-#       - ./order_service:/code 
-#     depends_on:
-#       - postgres_order_db
-#       - broker
-#     ports:
-#       - "8008:8000"    
+# Order Service
+  order_service:
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./order_service:/code 
+    depends_on:
+      - postgres_order_db
+      - broker
+    ports:
+      - "8008:8000"    
 
-# # Order Database
-#   postgres_order_db:
-#     image: postgres:latest 
-#     restart: always
-#     container_name: PostgresOrderCont
-#     environment:
-#         - POSTGRES_USER=ammar
-#         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=order_db
-#     ports:
-#         - '5438:5432'
-#     volumes:
-#         - postgres_order_db:/var/lib/postgresql/data
+# Order Database
+  postgres_order_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresOrderCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=order_db
+    ports:
+        - '5438:5432'
+    volumes:
+        - postgres_order_db:/var/lib/postgresql/data
 
 
 

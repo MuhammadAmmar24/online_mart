@@ -9,6 +9,7 @@ class InventoryItem(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     product_id: int
     quantity: int
+    unit_price: int
     status: InventoryStatus
 
 class InventoryItemUpdate(SQLModel):

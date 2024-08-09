@@ -1,7 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
-from app.protobuf import product_pb2
 from sqlmodel import Session, SQLModel
 from typing import Annotated, AsyncGenerator
 from aiokafka import AIOKafkaProducer
@@ -49,13 +48,14 @@ async def call_add_product(
     product: Product, 
     session: Annotated[Session, Depends(get_session)], 
     producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+
     existing_product = validate_id(product.id, session)
 
     if existing_product:
         raise HTTPException(status_code=400, detail=f"Product with ID {product.id} already exists")
     
     await produce_message(product, producer, "create")
-    logger.info(f"Produced message: {product}")
+
 
     return product
 

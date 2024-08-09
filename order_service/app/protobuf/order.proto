@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+
+
+message OrderModel {
+    optional int32 id = 1;
+    optional int32 user_id = 2;
+    optional int32 product_id = 3;
+    optional int32 quantity = 4;
+    optional float total_amount = 5;
+    optional string status = 6;
+}

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate, InventoryStatus
 from app.crud.inventory_crud import add_inventory_item, update_inventory_item, delete_inventory_item_by_id, get_inventory_item_by_product_id
 from app.deps import get_session
-from app.protobuf import product_pb2
+from app.protobuf.product_proto import product_pb2
 import asyncio
 
 # Set up logging
@@ -29,6 +29,7 @@ async def process_message(protobuf_product_item: product_pb2.Product, operation:
                     new_inventory_item = InventoryItem(
                         product_id=protobuf_product_item.id,
                         quantity=protobuf_product_item.quantity,
+                        unit_price=protobuf_product_item.price,
                         status=InventoryStatus.IN_STOCK if protobuf_product_item.quantity > 0 else InventoryStatus.OUT_OF_STOCK
                     )
                     db_insert_inventory_item = add_inventory_item(new_inventory_item, session=session)

@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select, asc
 
-from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate, InventoryStatus
 
 
 # Add a new Inventory Item
@@ -34,7 +34,7 @@ def get_inventory_item_by_id(id: int, session: Session) -> InventoryItem:
 
 # Get Inventory Item by product_id
 def get_inventory_item_by_product_id(product_id: int, session: Session) -> InventoryItem | None:
-    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.product_id == product_id)).one_or_none()
+    inventory_item = session.query(InventoryItem).filter(InventoryItem.product_id == product_id).first()
     return inventory_item
 
 
@@ -64,10 +64,33 @@ def delete_inventory_item_by_id(id: int, session: Session) -> dict:
 
     return {"message": "Inventory Item Deleted Successfully"}
 
-
-
-
 # Check if inventory item exists or not
-def validate_id(id: int, session: Session) -> InventoryItem | None:
-    inventory = session.exec(select(InventoryItem).where(InventoryItem.id == id)).one_or_none()
+async def validate_id(id: int, session: Session) -> InventoryItem | None:
+    inventory = await session.exec(select(InventoryItem).where(InventoryItem.id == id)).one_or_none()
+    if not inventory:  # Handle case where product is not found
+        return None, "Invalid product ID"
     return inventory
+
+
+# Update Quantity
+def update_quantity(product_id: int, quantity: int, session: Session, increase: bool = False):
+    inventory_item = get_inventory_item_by_product_id(product_id, session)
+    if not inventory_item:
+        raise ValueError(f"Inventory item with product_id {product_id} not found")
+
+    if increase:
+        inventory_item.quantity += quantity
+    else:
+        inventory_item.quantity -= quantity
+
+    # Update status based on the quantity
+    if inventory_item.quantity <= 0:
+        inventory_item.quantity = 0
+        inventory_item.status = InventoryStatus.OUT_OF_STOCK
+    else:
+        inventory_item.status = InventoryStatus.IN_STOCK
+
+    session.add(inventory_item)
+    session.commit()
+    session.refresh(inventory_item)
+    return inventory_item

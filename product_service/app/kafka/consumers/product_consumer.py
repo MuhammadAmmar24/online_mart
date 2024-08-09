@@ -23,7 +23,6 @@ async def process_message(protobuf_product: product_pb2.Product, operation: str)
             description=protobuf_product.description,
             category=protobuf_product.category,
             price=protobuf_product.price,
-            discount=protobuf_product.discount,
             quantity=protobuf_product.quantity,
             brand=protobuf_product.brand,
             weight=protobuf_product.weight,

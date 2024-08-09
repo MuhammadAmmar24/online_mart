@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
-from app.protobuf import product_pb2
+from app.protobuf.product_proto import product_pb2
 from sqlmodel import Session, SQLModel
 from typing import Annotated, AsyncGenerator
 from aiokafka import AIOKafkaProducer
@@ -11,9 +11,10 @@ from app import settings
 from app.db_engine import engine
 from app.deps import get_session, kafka_producer
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate
-from app.crud.inventory_crud import get_all_inventory_items, get_inventory_item_by_id,get_inventory_item_by_product_id, validate_id
-from app.kafka.producers.inventory_producer import produce_message
+from app.crud.inventory_crud import get_all_inventory_items, get_inventory_item_by_id
+# from app.kafka.producers.inventory_producer import produce_message
 from app.kafka.consumers.inventory_consumer import consume_product_updates
+from app.kafka.consumers.inventory_request_consumer import consume_inventory_request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +28,16 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     logger.info("Inventory Service Starting...")
     create_db_and_tables()
     task = asyncio.create_task(consume_product_updates(
-        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY))
+        settings.KAFKA_PRODUCT_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY
+        ))
+    asyncio.create_task(consume_inventory_request(
+        settings.KAFKA_INVENTORY_REQUEST_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY_REQUEST
+        ))
+    
     yield
     logger.info("Inventory Service Closing...")
 

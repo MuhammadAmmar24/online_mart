@@ -1,19 +1,18 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
-from app.protobuf import product_pb2
 from sqlmodel import Session, SQLModel
-from typing import Annotated, AsyncGenerator
+from typing import Annotated, List, AsyncGenerator
 from aiokafka import AIOKafkaProducer
 import asyncio
-
 from app import settings
 from app.db_engine import engine
 from app.deps import get_session, kafka_producer
-from app.models.product_model import Product, ProductUpdate
-from app.crud.product_crud import get_all_products, get_product_by_id, validate_id
-from app.kafka.producers.product_producer import produce_message
-from app.kafka.consumers.product_consumer import consume_products
+from app.models.order_model import OrderModel, OrderUpdate, OrderCreate
+from app.crud.order_crud import get_all_orders, get_order_by_id, delete_order_by_id, update_order, update_order_status, add_order, validate_order_id
+from app.kafka.producers.inventory_request_producer import produce_message_to_inventory
+from app.kafka.consumers.inventory_response_consumer import consume_inventory_response
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,79 +22,117 @@ def create_db_and_tables() -> None:
     logger.info("Database tables created successfully")
 
 @asynccontextmanager
-async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
-    logger.info("Product Service Starting...")
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("Order Service Starting...")
     create_db_and_tables()
-    task = asyncio.create_task(consume_products(
-        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT))
+    task = asyncio.create_task(consume_inventory_response(
+        settings.KAFKA_INVENTORY_RESPONSE_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY_RESPONSE))
     yield
-    logger.info("Product Service Closing...")
+    logger.info("Order Service Closing...")
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Product Service",
+    title="Order Service",
     version="0.0.1",
 )
 
 @app.get('/')
 def start():
-    return {"message": "Product Service"}
+    return {"message": "Order Service"}
 
+@app.post('/order', response_model=OrderModel)
+async def call_add_order(
+    order: OrderCreate,
+    session: Annotated[Session, Depends(get_session)],
+    producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]
+):
+    existing_order = validate_order_id(order.id, session)
 
-
-
-@app.post('/product', response_model=Product)
-async def call_add_product(
-    product: Product, 
-    session: Annotated[Session, Depends(get_session)], 
-    producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
-    existing_product = validate_id(product.id, session)
-
-    if existing_product:
-        raise HTTPException(status_code=400, detail=f"Product with ID {product.id} already exists")
+    if existing_order:
+        raise HTTPException(status_code=400, detail=f"Order with ID {order.id} already exists")
     
-    await produce_message(product, producer, "create")
-    logger.info(f"Produced message: {product}")
+    await produce_message_to_inventory(order, producer)
 
-    return product
-
-
-
-
-@app.get('/product/all', response_model=list[Product])
-def call_get_all_product(session: Annotated[Session, Depends(get_session)]):
-    return get_all_products(session)
+     # Return the response
+    return {
+            "id": order.id,
+            "status":order.status,
+            "message": "Your order is being processed. You will receive a notification once the processing is complete."
+        }
 
 
 
 
-@app.get('/product/{id}', response_model=Product)
-def call_get_product_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
+@app.get('/order/all', response_model=List[OrderModel])
+def call_get_all_orders(session: Annotated[Session, Depends(get_session)]):
+    return get_all_orders(session)
+
+
+
+@app.get('/order/{id}', response_model=OrderModel)
+def call_get_order_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
+    return get_order_by_id(id=id, session=session)
+
+
+
+@app.patch('/order/{id}', response_model=OrderModel)
+async def call_update_order(
+    id: int,
+    order: OrderUpdate,
+    session: Annotated[Session, Depends(get_session)],
+    producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]
+):
     
-    return get_product_by_id(id=id, session=session)
+    existing_order = get_order_by_id(id, session)
+
+    if existing_order.status in ['shipped', 'paid', 'delivered', 'cancelled']:
+        raise HTTPException(status_code=400, detail=f"Order {id} cannot be updated as it is already {existing_order.status}")
+
+    existing_order.quantity = order.quantity
+    existing_order.total_amount = 0.0
+    await produce_message_to_inventory(existing_order, producer)
+    return {
+            "id": existing_order.id,
+            "status":existing_order.status,
+            "message": "Your order is being processed. You will receive a notification once the processing is complete."
+        }
 
 
 
 
-@app.patch('/product/{id}', response_model=Product)
-async def call_update_product(id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
+@app.delete('/order/{id}', response_model=dict)
+async def call_delete_order_by_id(
+    id: int,
+    session: Annotated[Session, Depends(get_session)],
+    producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]
+):
+    order = call_get_order_by_id(id, session)
 
-    call_get_product_by_id(id, session)
-    updated_product = Product(id=id, **product.dict())
-    await produce_message(updated_product, producer, "update")
-    
-    return updated_product
+    if order.status not in ['shipped', 'paid', 'delivered', 'cancelled']:
+        order_update = OrderUpdate(status="cancelled")
+        order = update_order(id, order_update, session)
 
-
-
-@app.delete('/product/{id}', response_model=dict)
-async def call_delete_product_by_id(id: int, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
-
-    call_get_product_by_id(id, session)
-    await produce_message(Product(id=id), producer, "delete")
-
-    return {"deleted_id": id}
+        logger.info(f"Order {id} cancelled, sending message to release inventory: {order}")
+        await produce_message_to_inventory(order, producer)
+        
+        return {"status": "cancelled", 
+                "message": f"Order {id} has been cancelled and inventory released."
+                }
+    else:
+        raise HTTPException(status_code=400, detail=f"Order {id} cannot be cancelled as it is already {order.status}")
 
 
 
 
+
+# @app.post('/order/{id}/status', response_model=OrderModel)
+# async def call_update_order_status(
+#     id: int,
+#     status: OrderStatus,
+#     session: Annotated[Session, Depends(get_session)],
+#     producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]
+# ):
+#     updated_order = update_order_status(id, status, session)
+#     updated_order.updated_at = datetime.now(timezone.utc)
+#     await produce_message(updated_order, producer, "update_status")
+#     return updated_order

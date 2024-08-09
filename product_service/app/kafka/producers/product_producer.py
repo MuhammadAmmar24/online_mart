@@ -6,6 +6,7 @@ from app import settings
 logger = logging.getLogger(__name__)
 
 async def produce_message(product, producer: AIOKafkaProducer, operation: str):
+    
     try:
         protobuf_product = product_pb2.Product(
             id=product.id,
@@ -13,7 +14,6 @@ async def produce_message(product, producer: AIOKafkaProducer, operation: str):
             description=product.description,
             category=product.category,
             price=product.price,
-            discount=product.discount,
             quantity=product.quantity,
             brand=product.brand,
             weight=product.weight,
@@ -21,6 +21,7 @@ async def produce_message(product, producer: AIOKafkaProducer, operation: str):
         )
 
         serialized_product = protobuf_product.SerializeToString()
+        
         operation_bytes = operation.encode('utf-8')  # Convert operation to bytes
         logger.info(f"operation_bytes: {operation_bytes}")
 

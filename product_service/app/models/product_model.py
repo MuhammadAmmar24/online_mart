@@ -6,7 +6,6 @@ class Product(SQLModel, table=True):
     description: str
     category : str
     price : float
-    discount : int | None = None
     quantity : int | None = None
     brand : str | None = None
     weight : float | None 
@@ -19,7 +18,6 @@ class ProductUpdate(SQLModel):
     description: str | None = None 
     category : str | None = None 
     price : float | None = None
-    discount : int | None = None
     quantity : int | None = None
     brand : str | None = None
     weight : float | None 
