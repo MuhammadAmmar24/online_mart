@@ -2,10 +2,11 @@ import logging
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError, KafkaError
 from fastapi import HTTPException
+from app.deps import get_session, kafka_producer
 from app.models.order_model import OrderModel
 from app.crud.order_crud import add_order, update_order, get_order_by_id
-from app.deps import get_session
-from app.protobuf import order_pb2
+from app.kafka.producers.payment_request_producer import produce_message_to_payment
+from app.protobuf.order_proto import order_pb2
 import asyncio
 
 # Set up logging
@@ -34,6 +35,7 @@ async def process_inventory_response(protobuf_response, validation):
                     # Order does not exist, insert new order
                     db_insert_order = add_order(order, session=session)
                     logger.info(f"DB Inserted Order: {db_insert_order}")
+                    await produce_message_to_payment(order)
                 else:
                     # Order exists, update it
                     db_update_order = update_order(order.id, order, session=session)

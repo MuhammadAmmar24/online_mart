@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message UserModel {
+    optional int32 user_id = 1;
+    optional string username = 2;
+    optional string email = 3;
+    optional string full_name = 4;
+    optional string password = 5;
+}

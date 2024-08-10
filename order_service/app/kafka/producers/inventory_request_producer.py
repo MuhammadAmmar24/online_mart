@@ -1,6 +1,6 @@
 import logging
 from aiokafka import AIOKafkaProducer
-from app.protobuf import order_pb2
+from app.protobuf.order_proto import order_pb2
 from app.models.order_model import OrderModel
 from app import settings
 

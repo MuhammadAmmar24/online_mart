@@ -34,7 +34,7 @@ async def validate_and_calculate(product_id: int, quantity: int):
             # Calculate total amount and decrease inventory quantity
             total_amount = product.unit_price * quantity
 
-            logger.info('Updating Invnetory Quantity')
+            logger.info('Updating Inventory Quantity')
             update_quantity(product_id, quantity, session, increase=False)
 
             logger.info(f"Total amount calculated: {total_amount}")

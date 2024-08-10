@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+message Product {
+    optional int32 id = 1;
+    optional string title = 2;
+    optional string description = 3;
+    optional string category = 4;
+    optional float price = 5;
+    optional float quantity = 6;
+    optional string brand = 7;
+    optional float weight = 8;
+    optional string expiry = 9;
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message Payment {
+    int32 id = 1;
+    int32 order_id = 2;
+    int32 user_id = 3;
+    float amount = 4;
+    string status = 5;
+}

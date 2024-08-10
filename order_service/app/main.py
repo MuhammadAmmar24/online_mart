@@ -9,9 +9,11 @@ from app import settings
 from app.db_engine import engine
 from app.deps import get_session, kafka_producer
 from app.models.order_model import OrderModel, OrderUpdate, OrderCreate
-from app.crud.order_crud import get_all_orders, get_order_by_id, delete_order_by_id, update_order, update_order_status, add_order, validate_order_id
+from app.crud.order_crud import get_all_orders, get_order_by_id, update_order, validate_order_id
 from app.kafka.producers.inventory_request_producer import produce_message_to_inventory
+from app.kafka.producers.payment_request_producer import produce_message_to_payment
 from app.kafka.consumers.inventory_response_consumer import consume_inventory_response
+from app.kafka.consumers.payment_response_consumer import consume_payment_response
 
 
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +28,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Order Service Starting...")
     create_db_and_tables()
     task = asyncio.create_task(consume_inventory_response(
-        settings.KAFKA_INVENTORY_RESPONSE_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY_RESPONSE))
+        settings.KAFKA_INVENTORY_RESPONSE_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY_RESPONSE
+        ))
+    asyncio.create_task(consume_payment_response(
+        settings.KAFKA_PAYMENT_RESPONSE_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_PAYMENT_RESPONSE
+        ))
+    
     yield
     logger.info("Order Service Closing...")
 
@@ -114,6 +125,8 @@ async def call_delete_order_by_id(
 
         logger.info(f"Order {id} cancelled, sending message to release inventory: {order}")
         await produce_message_to_inventory(order, producer)
+        await produce_message_to_payment(order)
+
         
         return {"status": "cancelled", 
                 "message": f"Order {id} has been cancelled and inventory released."
