@@ -80,8 +80,10 @@ def call_get_product_by_id(id: int, session: Annotated[Session, Depends(get_sess
 @app.patch('/product/{id}', response_model=Product)
 async def call_update_product(id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
 
+    logger.info(f"Product id {id} Product Update: {product}")
     call_get_product_by_id(id, session)
     updated_product = Product(id=id, **product.dict())
+    logger.info(f"Updated Product: {updated_product}")
     await produce_message(updated_product, producer, "update")
     
     return updated_product

@@ -30,13 +30,18 @@ def get_user_by_id(id: int, session: Session) -> UserModel:
 
 # Update User by id
 def update_user(id: int, to_update_user_data: UserUpdate, session: Session) -> UserModel:
-    user = get_user_by_id(id, session)
-    user_data = to_update_user_data.model_dump(exclude_unset=True)
-    user.sqlmodel_update(user_data)
+
+    # 1. Get the User 
+    user = get_user_by_id(id,session)
+    
+    # 2. Upload the User
+    hero_data = to_update_user_data.model_dump(exclude_unset=True)
+    user.sqlmodel_update(hero_data)
     session.add(user)
     session.commit()
     session.refresh(user)
     return user
+
 
 # Delete User by id
 def delete_user_by_id(id: int, session: Session) -> dict:

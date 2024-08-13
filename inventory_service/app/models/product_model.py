@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field
 
-class Product(SQLModel, table=True):
+class Product(SQLModel):
     id : int | None = Field(default=None, primary_key=True)
     title : str
     description: str

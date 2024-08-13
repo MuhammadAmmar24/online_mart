@@ -68,19 +68,39 @@ def call_get_all_users(session: Annotated[Session, Depends(get_session)]):
 def call_get_user_by_id(id: int, session: Annotated[Session, Depends(get_session)]):
     return get_user_by_id(id=id, session=session)
 
+
+
 @app.patch('/user/{id}', response_model=UserModel)
 async def call_update_user(id: int, user: UserUpdate, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
 
-    call_get_user_by_id(id, session)
-    updated_user = UserModel(id=id, **user.dict())
-    await produce_message(updated_user, producer, "update")
-    
-    return updated_user
+    logger.info(f"User id {id} User Update: {user}")
+
+    existing_user = call_get_user_by_id(id, session)
+
+    logger.info(f"Existing User: {existing_user}")
+
+        # Only update the fields that are not None (i.e., provided in the request)
+    if user.email != "string":
+        logger.info(f"User Email is not none : {user.email}")
+        existing_user.email = user.email
+    if user.password != "string":
+        existing_user.password = user.password
+    if user.full_name != "string":
+        existing_user.full_name = user.full_name
+    if user.address != "string":
+        logger.info(f"User Address is not none : {user.address}")
+        existing_user.address = user.address
+
+    logger.info(f"Updated User: {existing_user}")
+    await produce_message(existing_user, producer, "update")
+     
+    return existing_user
 
 @app.delete('/user/{id}', response_model=dict)
 async def call_delete_user_by_id(id: int, session: Annotated[Session, Depends(get_session)],producer: Annotated[AIOKafkaProducer, Depends(kafka_producer)]):
 
-    call_get_user_by_id(id, session)
-    await produce_message(UserModel(id=id), producer, "delete")
+    
+    user = call_get_user_by_id(id, session)
+    await produce_message(user, producer, "delete")
 
     return {"deleted_id": id}

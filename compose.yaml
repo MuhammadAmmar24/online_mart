@@ -32,32 +32,32 @@ services:
 
 
 
-# # Product Service
-#   product_service:
-#     build:
-#       context: ./product_service
-#       dockerfile: Dockerfile.dev
-#     volumes:
-#       - ./product_service:/code 
-#     depends_on:
-#       - postgres_product_db
-#       - broker
-#     ports:
-#       - "8006:8000"    
+# Product Service
+  product_service:
+    build:
+      context: ./product_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./product_service:/code 
+    depends_on:
+      - postgres_product_db
+      - broker
+    ports:
+      - "8006:8000"    
 
-# # Product Database
-#   postgres_product_db:
-#     image: postgres:latest 
-#     restart: always
-#     container_name: PostgresProductCont
-#     environment:
-#         - POSTGRES_USER=ammar
-#         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=product_db
-#     ports:
-#         - '5436:5432'
-#     volumes:
-#         - postgres_product_db:/var/lib/postgresql/data
+# Product Database
+  postgres_product_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresProductCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=product_db
+    ports:
+        - '5436:5432'
+    volumes:
+        - postgres_product_db:/var/lib/postgresql/data
 
 
 
@@ -119,61 +119,61 @@ services:
 
 
 
-# Payment Service
-  payment_service:
-    build:
-      context: ./payment_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./payment_service:/code 
-    depends_on:
-      - postgres_payment_db
-      - broker
-    ports:
-      - "8009:8000"    
-
-# Payment Database
-  postgres_payment_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresPaymentCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=payment_db
-    ports:
-        - '5439:5432'
-    volumes:
-        - postgres_payment_db:/var/lib/postgresql/data
-
-
-
-# # Notification Service
-#   notification_service:
+# # Payment Service
+#   payment_service:
 #     build:
-#       context: ./notification_service
+#       context: ./payment_service
 #       dockerfile: Dockerfile.dev
 #     volumes:
-#       - ./notification_service:/code 
+#       - ./payment_service:/code 
 #     depends_on:
-#       - postgres_notification_db
+#       - postgres_payment_db
 #       - broker
 #     ports:
-#       - "8010:8000"    
+#       - "8009:8000"    
 
-# # Notification Database
-#   postgres_notification_db:
+# # Payment Database
+#   postgres_payment_db:
 #     image: postgres:latest 
 #     restart: always
-#     container_name: PostgresNotificationCont
+#     container_name: PostgresPaymentCont
 #     environment:
 #         - POSTGRES_USER=ammar
 #         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=notification_db
+#         - POSTGRES_DB=payment_db
 #     ports:
-#         - '5440:5432'
+#         - '5439:5432'
 #     volumes:
-#         - postgres_notification_db:/var/lib/postgresql/data
+#         - postgres_payment_db:/var/lib/postgresql/data
+
+
+
+# Notification Service
+  notification_service:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./notification_service:/code 
+    depends_on:
+      - postgres_notification_db
+      - broker
+    ports:
+      - "8010:8000"    
+
+# Notification Database
+  postgres_notification_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresNotificationCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=notification_db
+    ports:
+        - '5440:5432'
+    volumes:
+        - postgres_notification_db:/var/lib/postgresql/data
 
 
 

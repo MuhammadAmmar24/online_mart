@@ -9,10 +9,10 @@ async def produce_message(user, producer: AIOKafkaProducer, operation: str):
     try:
         protobuf_user = user_pb2.UserModel(
             user_id=user.user_id,
-            username=user.username,
             email=user.email,
-            full_name=user.full_name,
             password=user.password,
+            full_name=user.full_name,
+            address=user.address,
         )
 
         serialized_user = protobuf_user.SerializeToString()

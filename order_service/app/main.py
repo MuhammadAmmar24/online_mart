@@ -12,6 +12,8 @@ from app.models.order_model import OrderModel, OrderUpdate, OrderCreate
 from app.crud.order_crud import get_all_orders, get_order_by_id, update_order, validate_order_id
 from app.kafka.producers.inventory_request_producer import produce_message_to_inventory
 from app.kafka.producers.payment_request_producer import produce_message_to_payment
+from app.kafka.producers.notification_producer import produce_message_to_notification
+
 from app.kafka.consumers.inventory_response_consumer import consume_inventory_response
 from app.kafka.consumers.payment_response_consumer import consume_payment_response
 
@@ -126,6 +128,7 @@ async def call_delete_order_by_id(
         logger.info(f"Order {id} cancelled, sending message to release inventory: {order}")
         await produce_message_to_inventory(order, producer)
         await produce_message_to_payment(order)
+        await produce_message_to_notification(order, 'order-cancelled')
 
         
         return {"status": "cancelled", 
