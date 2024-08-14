@@ -6,6 +6,7 @@ from app.deps import get_session
 from app.models.order_model import OrderModel
 from app.crud.order_crud import update_order, get_order_by_id
 from app.protobuf.payment_proto import payment_pb2
+from app.kafka.producers.notification_producer import produce_message_to_notification
 import asyncio
 
 # Set up logging
@@ -21,15 +22,20 @@ async def process_payment_response(protobuf_response, status):
     try:
         with next(get_session()) as session:
             order = get_order_by_id(protobuf_response.order_id, session)
-            if order:
-                if status == "paid":
+        if order:
+            if status == "paid":
+                with next(get_session()) as session:
                     order_update = OrderModel(status="paid")
                     db_update_order = update_order(order.id, order_update, session=session)
                     logger.info(f"Order status updated to Paid: {db_update_order}")
-                else:
-                    logger.info(f"Payment for Order ID {protobuf_response.order_id} is {status}")
+
+                logger.info(f"Payment for Order ID {protobuf_response.order_id} is {status}")
+                logger.info(f"Producing message to Notification Service for Order ID {protobuf_response.order_id}")
+                await produce_message_to_notification(db_update_order, "order-paid")
             else:
-                logger.error(f"Order ID {protobuf_response.order_id} not found")
+                logger.info(f"Payment for Order ID {protobuf_response.order_id} is {status}")
+        else:
+            logger.error(f"Order ID {protobuf_response.order_id} not found")
 
     except HTTPException as e:
         logger.error(f"HTTPException: {e.detail}")

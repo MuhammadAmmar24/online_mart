@@ -14,6 +14,7 @@ from app.crud.order_crud import get_all_orders, get_order_by_id, update_order, v
 from app.kafka.producers.user_request_producer import produce_message_to_user
 from app.kafka.producers.inventory_request_producer import produce_message_to_inventory
 from app.kafka.producers.notification_producer import produce_message_to_notification
+from app.kafka.producers.payment_request_producer import produce_message_to_payment
 
 from app.kafka.consumers.inventory_response_consumer import consume_inventory_response
 from app.kafka.consumers.payment_response_consumer import consume_payment_response
@@ -47,11 +48,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         settings.BOOTSTRAP_SERVER, 
         settings.KAFKA_CONSUMER_GROUP_ID_FOR_INVENTORY_RESPONSE
         ))
-    # asyncio.create_task(consume_payment_response(
-    #     settings.KAFKA_PAYMENT_RESPONSE_TOPIC, 
-    #     settings.BOOTSTRAP_SERVER, 
-    #     settings.KAFKA_CONSUMER_GROUP_ID_FOR_PAYMENT_RESPONSE
-    #     ))
+    asyncio.create_task(consume_payment_response(
+        settings.KAFKA_PAYMENT_RESPONSE_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_PAYMENT_RESPONSE
+        ))
     
     yield
     logger.info("Order Service Closing...")
@@ -156,7 +157,7 @@ async def call_delete_order_by_id(
         logger.info(f"Order {id} cancelled, sending message to release inventory: {order}")
         await produce_message_to_notification(order, 'order-cancelled')
         await produce_message_to_inventory(order)
-        # await produce_message_to_payment(order)
+        await produce_message_to_payment(order)
 
         
         return {"status": "cancelled", 

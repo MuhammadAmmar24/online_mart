@@ -12,7 +12,7 @@ from app.models.user_model import UserModel
 from app.models.order_model import OrderModel
 from app.email.email_sender.email_sender import send_email
 from app.email.templates.user_email_templates import account_creation_email, account_update_email, account_deletion_email
-from app.email.templates.order_email_templates import order_creation_email, order_update_email, order_cancellation_email
+from app.email.templates.order_email_templates import order_creation_email, order_update_email, order_cancellation_email, order_paid_email
 
 
 # Set up logging
@@ -94,6 +94,9 @@ async def process_order_notification_request(protobuf_message, message_type):
 
             elif message_type == "order-cancelled":
                 subject, message = order_cancellation_email(order.user_full_name, order.id, order.product_title, order.product_description, order.product_category, order.product_brand, order.quantity, order.total_amount)
+            
+            elif message_type == "order-paid":
+                subject, message = order_paid_email(order.user_full_name, order.user_address, order.id, order.product_title, order.product_description, order.product_category, order.product_brand,order.quantity, order.total_amount)
 
             else:
                 return  # In case of unknown message_type
@@ -159,7 +162,7 @@ async def consume_notification(topic, bootstrap_servers, group_id):
 
                 await process_user_notification_request(protobuf_user, message_type)
             
-            if message_type  in ['order-create', 'order-update', 'order-cancelled']:
+            if message_type  in ['order-create', 'order-update', 'order-cancelled', 'order-paid']:
                 protobuf_order = order_pb2.OrderModel()
                 protobuf_order.ParseFromString(msg.value)
                 

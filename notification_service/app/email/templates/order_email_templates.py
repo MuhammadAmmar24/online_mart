@@ -16,8 +16,7 @@ ORDER STATUS:  {order_status}
 
 Your order will be delivered to the following address:
 
-DELIVERY ADDRESS:  
-{address}
+DELIVERY ADDRESS:  {address}
 
 We will notify you when your order is on its way. Thank you for choosing Ammar Mart!
 
@@ -48,8 +47,7 @@ Order Status:  {order_status}
 
 The delivery address for your order remains the same:
 
-Delivery Address:  
-{address}
+Delivery Address:  {address}
 
 Thank you for your continued trust in Ammar Mart. We hope to serve you again soon!
 
@@ -84,3 +82,35 @@ Best regards,
 The Ammar Mart Team
     """
     return subject, message
+
+
+def order_paid_email(full_name, address, order_id, product_title, product_description, product_category, product_brand, quantity, total_amount):
+    subject = f"Payment Confirmation - Your Ammar Mart Order #{order_id} Has Been Paid"
+    message = f"""
+Dear {full_name},
+
+Thank you for your purchase! We are pleased to inform you that the payment for your order #{order_id} has been successfully processed. Below are the details of your paid order:
+
+Order ID:  {order_id}
+Product:  {product_title}
+Description:  {product_description}
+Category:  {product_category}
+Brand:  {product_brand}
+Quantity:  {quantity}
+Total Amount Paid:  ${total_amount}
+
+Your order will be delivered to the following address:
+
+Delivery Address:  {address}
+
+We truly appreciate your business and look forward to serving you again in the future. We will notify you once your order has been dispatched. 
+
+If you have any questions or need further assistance, please feel free to contact our customer support team.
+
+Thank you once again for choosing Ammar Mart!
+
+Best regards,  
+The Ammar Mart Team
+    """
+    return subject, message
+

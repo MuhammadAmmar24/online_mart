@@ -119,32 +119,32 @@ services:
 
 
 
-# # Payment Service
-#   payment_service:
-#     build:
-#       context: ./payment_service
-#       dockerfile: Dockerfile.dev
-#     volumes:
-#       - ./payment_service:/code 
-#     depends_on:
-#       - postgres_payment_db
-#       - broker
-#     ports:
-#       - "8009:8000"    
+# Payment Service
+  payment_service:
+    build:
+      context: ./payment_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./payment_service:/code 
+    depends_on:
+      - postgres_payment_db
+      - broker
+    ports:
+      - "8009:8000"    
 
-# # Payment Database
-#   postgres_payment_db:
-#     image: postgres:latest 
-#     restart: always
-#     container_name: PostgresPaymentCont
-#     environment:
-#         - POSTGRES_USER=ammar
-#         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=payment_db
-#     ports:
-#         - '5439:5432'
-#     volumes:
-#         - postgres_payment_db:/var/lib/postgresql/data
+# Payment Database
+  postgres_payment_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresPaymentCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=payment_db
+    ports:
+        - '5439:5432'
+    volumes:
+        - postgres_payment_db:/var/lib/postgresql/data
 
 
 

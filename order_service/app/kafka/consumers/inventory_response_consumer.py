@@ -44,7 +44,7 @@ async def process_inventory_response(protobuf_response, validation):
                     db_insert_order = add_order(order, session=session)
                     logger.info(f"DB Inserted Order: {db_insert_order}")
 
-                # await produce_message_to_payment(order)
+                await produce_message_to_payment(order)
                 await produce_message_to_notification(order, 'order-create')
 
             else:
