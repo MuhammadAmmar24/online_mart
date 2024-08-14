@@ -22,7 +22,7 @@ def get_all_users(session: Session) -> list[UserModel]:
     return all_users
 
 # Get User by id
-def get_user_by_id(id: int, session: Session) -> UserModel:
+def get_user_by_id(id: int, session: Session) -> UserModel | None:
     user = session.exec(select(UserModel).where(UserModel.user_id == id)).one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail=f"No User found with the id : {id}")

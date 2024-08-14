@@ -9,8 +9,10 @@ from app.crud.notification_crud import add_notification, update_notification_sta
 from app.protobuf.user_proto import user_pb2
 from app.protobuf.order_proto import order_pb2
 from app.models.user_model import UserModel
+from app.models.order_model import OrderModel
 from app.email.email_sender.email_sender import send_email
 from app.email.templates.user_email_templates import account_creation_email, account_update_email, account_deletion_email
+from app.email.templates.order_email_templates import order_creation_email, order_update_email, order_cancellation_email
 
 
 # Set up logging
@@ -62,27 +64,56 @@ async def process_user_notification_request(protobuf_user, message_type):
 
 
 async def process_order_notification_request(protobuf_message, message_type):
-    logger.info(f"Processing notification request: {protobuf_message} of type {message_type}")
+    logger.info(f"Processing order notification request: {protobuf_message} of type {message_type}")
 
-    
+    try:
+        order = OrderModel(
+            id=protobuf_message.id,
+            user_id=protobuf_message.user_id,
+            user_email=protobuf_message.user_email,
+            user_full_name=protobuf_message.user_full_name,
+            user_address=protobuf_message.user_address,
+            product_id=protobuf_message.product_id,
+            quantity=protobuf_message.quantity,
+            total_amount=protobuf_message.total_amount,
+            product_title=protobuf_message.product_title,
+            product_description=protobuf_message.product_description,
+            product_category=protobuf_message.product_category,
+            product_brand=protobuf_message.product_brand,
+            status=protobuf_message.status
+        )
 
+        logger.info(f"Converted SQLModel Order Data: {order}")
 
-    # try:
-    #     with next(get_session()) as session:
-    #         notification = Notification(
-    #             email=protobuf_message.email,
-    #             subject=protobuf_message.subject,
-    #             message=protobuf_message.message,
-    #             status="Pending"
-    #         )
-    #         db_notification = add_notification(notification, session=session)
-    #         email_sent = send_email(notification.email, notification.subject, notification.message)
+        with next(get_session()) as session:
+            if message_type == "order-create":
+                subject, message = order_creation_email(order.user_full_name, order.user_address, order.id, order.product_title, order.product_description, order.product_category, order.product_brand,order.quantity, order.total_amount, order.status)
+
+            elif message_type == "order-update":
+                subject, message = order_update_email(order.user_full_name, order.user_address, order.id, order.product_title, order.product_description, order.product_category, order.product_brand,order.quantity, order.total_amount, order.status)
+
+            elif message_type == "order-cancelled":
+                subject, message = order_cancellation_email(order.user_full_name, order.id, order.product_title, order.product_description, order.product_category, order.product_brand, order.quantity, order.total_amount)
+
+            else:
+                return  # In case of unknown message_type
+
+            notification = Notification(
+                email=order.user_email,
+                subject=subject,
+                message=message,
+                status="Pending"
+            )
+
+            db_notification = add_notification(notification, session=session)
+            email_sent = send_email(notification.email, notification.subject, notification.message)
             
-    #         new_status = "Sent" if email_sent else "Failed"
-    #         update_notification_status(db_notification.id, new_status, session=session)
-    # except Exception as e:
-    #     logger.error(f"Exception while processing notification: {str(e)}")
-    #     raise
+            new_status = "Sent" if email_sent else "Failed"
+            update_notification_status(db_notification.id, new_status, session=session)
+
+    except Exception as e:
+        logger.error(f"Exception while processing order notification: {str(e)}")
+        raise
 
 
 
@@ -124,17 +155,15 @@ async def consume_notification(topic, bootstrap_servers, group_id):
 
                 protobuf_user = user_pb2.UserModel()
                 protobuf_user.ParseFromString(msg.value)
-                logger.info(f"Received User Message from Kafka: {protobuf_user}")
+                
 
-                logger.info(f"Consumed User Notification Request Data: {protobuf_user}")
                 await process_user_notification_request(protobuf_user, message_type)
             
             if message_type  in ['order-create', 'order-update', 'order-cancelled']:
                 protobuf_order = order_pb2.OrderModel()
                 protobuf_order.ParseFromString(msg.value)
-                logger.info(f"Received User Message from Kafka: {protobuf_order}")
+                
 
-                logger.info(f"Consumed User Notification Request Data: {protobuf_order}")
                 await process_order_notification_request(protobuf_order, message_type)
 
     except KafkaError as e:

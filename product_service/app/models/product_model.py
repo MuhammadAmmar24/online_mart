@@ -8,8 +8,7 @@ class Product(SQLModel, table=True):
     price : float
     quantity : int | None = None
     brand : str | None = None
-    weight : float | None 
-    expiry : str | None = None
+
     
 
 # Update Product
@@ -20,5 +19,4 @@ class ProductUpdate(SQLModel):
     price : float | None = None
     quantity : int | None = None
     brand : str | None = None
-    weight : float | None 
-    expiry : str | None = None
+

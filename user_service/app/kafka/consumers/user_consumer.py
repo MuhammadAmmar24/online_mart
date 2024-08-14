@@ -7,7 +7,7 @@ from app.deps import get_session
 from app.models.user_model import UserModel, UserUpdate
 from app.crud.user_crud import add_user, update_user, delete_user_by_id, get_user_by_id
 from app.kafka.producers.notification_producer import produce_message_to_notification
-from app.protobuf import user_pb2
+from app.protobuf.user_proto import user_pb2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

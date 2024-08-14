@@ -13,6 +13,7 @@ from app.models.product_model import Product, ProductUpdate
 from app.crud.product_crud import get_all_products, get_product_by_id, validate_id
 from app.kafka.producers.product_producer import produce_message
 from app.kafka.consumers.product_consumer import consume_products
+from app.kafka.consumers.product_request_consumer import consume_product_request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,7 +27,16 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     logger.info("Product Service Starting...")
     create_db_and_tables()
     task = asyncio.create_task(consume_products(
-        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT))
+        settings.KAFKA_PRODUCT_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT
+        ))
+    asyncio.create_task(consume_product_request(
+        settings.KAFKA_PRODUCT_REQUEST_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT_REQUEST
+        ))
+    
     yield
     logger.info("Product Service Closing...")
 

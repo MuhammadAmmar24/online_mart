@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from app.models.product_model import Product, ProductUpdate
 from app.crud.product_crud import add_product, update_product, delete_product_by_id
 from app.deps import get_session
-from app.protobuf import product_pb2
+from app.protobuf.product_proto import product_pb2
 import asyncio
 
 # Set up logging
@@ -25,8 +25,6 @@ async def process_message(protobuf_product: product_pb2.Product, operation: str)
             price=protobuf_product.price,
             quantity=protobuf_product.quantity,
             brand=protobuf_product.brand,
-            weight=protobuf_product.weight,
-            expiry=protobuf_product.expiry,
         )
 
         logger.info(f"Converted SQLModel Product Data: {sqlmodel_product}")

@@ -1,5 +1,5 @@
 import logging
-from app.protobuf import product_pb2
+from app.protobuf.product_proto import product_pb2
 from aiokafka import AIOKafkaProducer
 from app import settings
 
@@ -16,8 +16,6 @@ async def produce_message(product, producer: AIOKafkaProducer, operation: str):
             price=product.price,
             quantity=product.quantity,
             brand=product.brand,
-            weight=product.weight,
-            expiry=product.expiry,
         )
 
         serialized_product = protobuf_product.SerializeToString()

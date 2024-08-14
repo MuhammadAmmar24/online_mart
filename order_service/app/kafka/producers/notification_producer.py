@@ -13,14 +13,22 @@ async def produce_message_to_notification(order: OrderModel, key: str):
 
     producer = AIOKafkaProducer(bootstrap_servers=settings.BOOTSTRAP_SERVER)
     await producer.start()
+
     try:
         protobuf_order = order_pb2.OrderModel(
         id=order.id,
-        user_id=order.user_id,
-        product_id=order.product_id,
-        quantity=order.quantity,
-        total_amount=order.total_amount,
-        status=order.status
+            user_id=order.user_id,
+            user_email=order.user_email,
+            user_full_name=order.user_full_name,
+            user_address=order.user_address,
+            product_id=order.product_id,
+            quantity=order.quantity,
+            total_amount=order.total_amount,
+            product_title=order.product_title,
+            product_description=order.product_description,
+            product_category=order.product_category,
+            product_brand=order.product_brand,
+            status=order.status
     )
         serialized_order = protobuf_order.SerializeToString()
         

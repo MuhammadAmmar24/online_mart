@@ -23,12 +23,19 @@ async def process_inventory_response(protobuf_response, validation):
     try:
         if validation == 'validated':
             order = OrderModel(
-                id=protobuf_response.id,
-                user_id=protobuf_response.user_id,
-                product_id=protobuf_response.product_id,
-                quantity=protobuf_response.quantity,
-                total_amount=protobuf_response.total_amount,
-                status="Pending"
+            id=protobuf_response.id,
+            user_id=protobuf_response.user_id,
+            user_email=protobuf_response.user_email,
+            user_full_name=protobuf_response.user_full_name,
+            user_address=protobuf_response.user_address,
+            product_id=protobuf_response.product_id,
+            quantity=protobuf_response.quantity,
+            total_amount=protobuf_response.total_amount,
+            product_title=protobuf_response.product_title,
+            product_description=protobuf_response.product_description,
+            product_category=protobuf_response.product_category,
+            product_brand=protobuf_response.product_brand,
+            status='Pending'
             )
             with next(get_session()) as session:
                 existing_order = get_order_by_id(order.id, session)
@@ -37,7 +44,7 @@ async def process_inventory_response(protobuf_response, validation):
                     db_insert_order = add_order(order, session=session)
                     logger.info(f"DB Inserted Order: {db_insert_order}")
 
-                await produce_message_to_payment(order)
+                # await produce_message_to_payment(order)
                 await produce_message_to_notification(order, 'order-create')
 
             else:

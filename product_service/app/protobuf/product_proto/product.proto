@@ -8,6 +8,4 @@ message Product {
     optional float price = 5;
     optional float quantity = 6;
     optional string brand = 7;
-    optional float weight = 8;
-    optional string expiry = 9;
 }

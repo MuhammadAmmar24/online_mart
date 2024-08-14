@@ -1,5 +1,5 @@
 import logging
-from app.protobuf import user_pb2
+from app.protobuf.user_proto import user_pb2
 from aiokafka import AIOKafkaProducer
 from app import settings
 

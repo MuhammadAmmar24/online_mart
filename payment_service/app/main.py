@@ -8,7 +8,7 @@ import asyncio
 
 from app import settings
 from app.db_engine import engine
-from app.deps import get_session, kafka_producer
+from app.deps import get_session
 from app.models.payment_model import Payment
 from app.crud.payment_crud import get_all_payments, get_payment_by_id, get_payment_by_order_id, update_payment
 from app.kafka.producers.payment_response_producer import produce_message_to_order
@@ -26,7 +26,10 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     logger.info("Payment Service Starting...")
     create_db_and_tables()
     task = asyncio.create_task(consume_payment_requests(
-        settings.KAFKA_PAYMENT_REQUEST_TOPIC, settings.BOOTSTRAP_SERVER, settings.KAFKA_CONSUMER_GROUP_ID_FOR_PAYMENT_REQUEST))
+        settings.KAFKA_PAYMENT_REQUEST_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_PAYMENT_REQUEST
+        ))
     yield
     logger.info("Payment Service Closing...")
 

@@ -1,12 +1,17 @@
 syntax = "proto3";
 
-
-
-message OrderModel {
-    optional int32 id = 1;
-    optional int32 user_id = 2;
-    optional int32 product_id = 3;
-    optional int32 quantity = 4;
-    optional float total_amount = 5;
-    optional string status = 6;
+message OrderModel { 
+    int32 id = 1; 
+    int32 user_id = 2; 
+    string user_email = 3; 
+    string user_full_name = 4; 
+    string user_address = 5; 
+    int32 product_id = 6; 
+    int32 quantity = 7; 
+    float total_amount = 8; 
+    string product_title = 9; 
+    string product_description = 10; 
+    string product_category = 11; 
+    string product_brand = 12; 
+    string status = 13;
 }

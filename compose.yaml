@@ -3,32 +3,32 @@ name: mart
 services:
 
 
-# # User Service
-#   user_service:
-#     build:
-#       context: ./user_service
-#       dockerfile: Dockerfile.dev
-#     volumes:
-#       - ./user_service:/code 
-#     depends_on:
-#       - postgres_user_db
-#       - broker
-#     ports:
-#       - "8005:8000"    
+# User Service
+  user_service:
+    build:
+      context: ./user_service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./user_service:/code 
+    depends_on:
+      - postgres_user_db
+      - broker
+    ports:
+      - "8005:8000"    
 
-# # User Database
-#   postgres_user_db:
-#     image: postgres:latest 
-#     restart: always
-#     container_name: PostgresUserCont
-#     environment:
-#         - POSTGRES_USER=ammar
-#         - POSTGRES_PASSWORD=mypassword
-#         - POSTGRES_DB=user_db
-#     ports:
-#         - '5435:5432'
-#     volumes:
-#         - postgres_user_db:/var/lib/postgresql/data
+# User Database
+  postgres_user_db:
+    image: postgres:latest 
+    restart: always
+    container_name: PostgresUserCont
+    environment:
+        - POSTGRES_USER=ammar
+        - POSTGRES_PASSWORD=mypassword
+        - POSTGRES_DB=user_db
+    ports:
+        - '5435:5432'
+    volumes:
+        - postgres_user_db:/var/lib/postgresql/data
 
 
 

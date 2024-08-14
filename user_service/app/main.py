@@ -13,6 +13,7 @@ from app.models.user_model import UserModel, UserUpdate
 from app.crud.user_crud import get_all_users, get_user_by_id, validate_id
 from app.kafka.producers.user_producer import produce_message
 from app.kafka.consumers.user_consumer import consume_users
+from app.kafka.consumers.user_request_consumer import consume_user_request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,7 +31,11 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
         settings.BOOTSTRAP_SERVER, 
         settings.KAFKA_CONSUMER_GROUP_ID_FOR_USER
         ))
- 
+    asyncio.create_task(consume_user_request(
+        settings.KAFKA_USER_REQUEST_TOPIC, 
+        settings.BOOTSTRAP_SERVER, 
+        settings.KAFKA_CONSUMER_GROUP_ID_FOR_USER_REQUEST
+        ))
 
     yield
     logger.info("User Service Closing...")
