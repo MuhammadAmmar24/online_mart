@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "online-mart"
+version = "0.1.0"
+description = ""
+authors = ["MuhammadAmmar24 <jazba685@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.111.0"
+uvicorn = "^0.29.0"
+sqlmodel = "^0.0.19"
+aiokafka = "^0.11.0"
+protobuf = "^5.27.2"
+psycopg = {extras = ["binary"], version = "^3.1.18"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+pyjwt = "^2.8.0"
+httpx = "^0.27.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

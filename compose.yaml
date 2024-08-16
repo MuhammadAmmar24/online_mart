@@ -1,20 +1,123 @@
-# version: '3.8'
-name: mart
-services:
+# version: "3.9"
 
+name: mart
+
+x-kong-config: &kong-env
+  KONG_DATABASE: ${KONG_DATABASE:-postgres}
+  KONG_PG_DATABASE: ${KONG_PG_DATABASE:-kong}
+  KONG_PG_HOST: db
+  KONG_PG_USER: ${KONG_PG_USER:-kong}
+  KONG_PG_PASSWORD_FILE: /run/secrets/kong_postgres_password
+
+
+services:
+  kong-migrations:
+    image: "${KONG_DOCKER_TAG:-kong:latest}"
+    command: kong migrations bootstrap
+    # profiles: ["database"]
+    depends_on:
+      - db
+    environment:
+      <<: *kong-env
+    secrets:
+      - kong_postgres_password
+    restart: on-failure
+
+  kong-migrations-up:
+    image: "${KONG_DOCKER_TAG:-kong:latest}"
+    command: kong migrations up && kong migrations finish
+    #   : ["database"]
+    depends_on:
+      - db
+    environment:
+      <<: *kong-env
+    secrets:
+      - kong_postgres_password
+    restart: on-failure
+
+  kong:
+    image: "${KONG_DOCKER_TAG:-kong:latest}"
+    user: "${KONG_USER:-kong}"
+    environment:
+      <<: *kong-env
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_PROXY_LISTEN: "${KONG_PROXY_LISTEN:-0.0.0.0:8000}"
+      KONG_ADMIN_LISTEN: "${KONG_ADMIN_LISTEN:-0.0.0.0:8001}"
+      KONG_ADMIN_GUI_LISTEN: "${KONG_ADMIN_GUI_LISTEN:-0.0.0.0:8002}"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_PREFIX: ${KONG_PREFIX:-/var/run/kong}
+      KONG_DECLARATIVE_CONFIG: "/opt/kong/kong.yaml"
+    secrets:
+      - kong_postgres_password
+    ports:
+      # The following two environment variables default to an insecure value (0.0.0.0)
+      # according to the CIS Security test.
+      - "${KONG_INBOUND_PROXY_LISTEN:-0.0.0.0}:8000:8000/tcp"
+      - "${KONG_INBOUND_SSL_PROXY_LISTEN:-0.0.0.0}:8443:8443/tcp"
+      # Making them mandatory but undefined, like so would be backwards-breaking:
+      # - "${KONG_INBOUND_PROXY_LISTEN?Missing inbound proxy host}:8000:8000/tcp"
+      # - "${KONG_INBOUND_SSL_PROXY_LISTEN?Missing inbound proxy ssl host}:8443:8443/tcp"
+      # Alternative is deactivating check 5.13 in the security bench, if we consider Kong's own config to be enough security here
+
+      - "127.0.0.1:8001:8001/tcp"
+      - "127.0.0.1:8444:8444/tcp"
+      - "127.0.0.1:8002:8002/tcp"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: on-failure:5
+    read_only: true
+    volumes:
+      - kong_prefix_vol:${KONG_PREFIX:-/var/run/kong}
+      - kong_tmp_vol:/tmp
+      # - ./config:/opt/kong
+    security_opt:
+      - no-new-privileges
+
+  db:
+    image: postgres:9.5
+    # profiles: ["database"]
+    environment:
+      POSTGRES_DB: ${KONG_PG_DATABASE:-kong}
+      POSTGRES_USER: ${KONG_PG_USER:-kong}
+      POSTGRES_PASSWORD_FILE: /run/secrets/kong_postgres_password
+    secrets:
+      - kong_postgres_password
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-d",
+          "${KONG_PG_DATABASE:-kong}",
+          "-U",
+          "${KONG_PG_USER:-kong}",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: on-failure
+    stdin_open: true
+    tty: true
+    volumes:
+      - kong_data:/var/lib/postgresql/data
 
 # User Service
-  user_service:
+  user-service:
     build:
-      context: ./user_service
+      context: ./user-service
       dockerfile: Dockerfile.dev
     volumes:
-      - ./user_service:/code 
+      - ./user-service:/code 
     depends_on:
       - postgres_user_db
-      - broker
+      # - broker
     ports:
-      - "8005:8000"    
+      - "8005:8005"    
 
 # User Database
   postgres_user_db:
@@ -32,76 +135,76 @@ services:
 
 
 
-# Product Service
-  product_service:
-    build:
-      context: ./product_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./product_service:/code 
-    depends_on:
-      - postgres_product_db
-      - broker
-    ports:
-      - "8006:8000"    
+# # Product Service
+#   product-service:
+#     build:
+#       context: ./product-service
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./product-service:/code 
+#     depends_on:
+#       - postgres_product_db
+#       - broker
+#     ports:
+#       - "8006:8006"    
 
-# Product Database
-  postgres_product_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresProductCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=product_db
-    ports:
-        - '5436:5432'
-    volumes:
-        - postgres_product_db:/var/lib/postgresql/data
+# # Product Database
+#   postgres_product_db:
+#     image: postgres:latest 
+#     restart: always
+#     container_name: PostgresProductCont
+#     environment:
+#         - POSTGRES_USER=ammar
+#         - POSTGRES_PASSWORD=mypassword
+#         - POSTGRES_DB=product_db
+#     ports:
+#         - '5436:5432'
+#     volumes:
+#         - postgres_product_db:/var/lib/postgresql/data
 
 
 
-# Inventory Service
-  inventory_service:
-    build:
-      context: ./inventory_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./inventory_service:/code 
-    depends_on:
-      - postgres_inventory_db
-      - broker
-    ports:
-      - "8007:8000"    
+# # Inventory Service
+#   inventory-service:
+#     build:
+#       context: ./inventory-service
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./inventory-service:/code 
+#     depends_on:
+#       - postgres_inventory_db
+#       - broker
+#     ports:
+#       - "8007:8007"    
 
-# Inventory Database
-  postgres_inventory_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresInventoryCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=inventory_db
-    ports:
-        - '5437:5432'
-    volumes:
-        - postgres_inventory_db:/var/lib/postgresql/data
+# # Inventory Database
+#   postgres_inventory_db:
+#     image: postgres:latest 
+#     restart: always
+#     container_name: PostgresInventoryCont
+#     environment:
+#         - POSTGRES_USER=ammar
+#         - POSTGRES_PASSWORD=mypassword
+#         - POSTGRES_DB=inventory_db
+#     ports:
+#         - '5437:5432'
+#     volumes:
+#         - postgres_inventory_db:/var/lib/postgresql/data
 
 
 
 # Order Service
-  order_service:
+  order-service:
     build:
-      context: ./order_service
+      context: ./order-service
       dockerfile: Dockerfile.dev
     volumes:
-      - ./order_service:/code 
+      - ./order-service:/code 
     depends_on:
       - postgres_order_db
       - broker
     ports:
-      - "8008:8000"    
+      - "8008:8008"    
 
 # Order Database
   postgres_order_db:
@@ -119,62 +222,61 @@ services:
 
 
 
-# Payment Service
-  payment_service:
-    build:
-      context: ./payment_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./payment_service:/code 
-    depends_on:
-      - postgres_payment_db
-      - broker
-    ports:
-      - "8009:8000"    
+# # Payment Service
+#   payment-service:
+#     build:
+#       context: ./payment-service
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./payment-service:/code 
+#     depends_on:
+#       - postgres_payment_db
+#       - broker
+#     ports:
+#       - "8009:8009"    
 
-# Payment Database
-  postgres_payment_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresPaymentCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=payment_db
-    ports:
-        - '5439:5432'
-    volumes:
-        - postgres_payment_db:/var/lib/postgresql/data
+# # Payment Database
+#   postgres_payment_db:
+#     image: postgres:latest 
+#     restart: always
+#     container_name: PostgresPaymentCont
+#     environment:
+#         - POSTGRES_USER=ammar
+#         - POSTGRES_PASSWORD=mypassword
+#         - POSTGRES_DB=payment_db
+#     ports:
+#         - '5439:5432'
+#     volumes:
+#         - postgres_payment_db:/var/lib/postgresql/data
 
 
 
-# Notification Service
-  notification_service:
-    build:
-      context: ./notification_service
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./notification_service:/code 
-    depends_on:
-      - postgres_notification_db
-      - broker
-    ports:
-      - "8010:8000"    
+# # Notification Service
+#   notification-service:
+#     build:
+#       context: ./notification-service
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./notification-service:/code 
+#     depends_on:
+#       - postgres_notification_db
+#       - broker
+#     ports:
+#       - "8010:8010"    
 
-# Notification Database
-  postgres_notification_db:
-    image: postgres:latest 
-    restart: always
-    container_name: PostgresNotificationCont
-    environment:
-        - POSTGRES_USER=ammar
-        - POSTGRES_PASSWORD=mypassword
-        - POSTGRES_DB=notification_db
-    ports:
-        - '5440:5432'
-    volumes:
-        - postgres_notification_db:/var/lib/postgresql/data
-
+# # Notification Database
+#   postgres_notification_db:
+#     image: postgres:latest 
+#     restart: always
+#     container_name: PostgresNotificationCont
+#     environment:
+#         - POSTGRES_USER=ammar
+#         - POSTGRES_PASSWORD=mypassword
+#         - POSTGRES_DB=notification_db
+#     ports:
+#         - '5440:5432'
+#     volumes:
+#         - postgres_notification_db:/var/lib/postgresql/data
 
 
   broker:
@@ -199,33 +301,46 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui
-    container_name: kafka-ui
-    ports:
-      - "8080:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: 'Local Kafka Cluster'
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'broker:19092'
-      DYNAMIC_CONFIG_ENABLED: "true"
-    depends_on:
-      - broker
+  # kafka-ui:
+  #   image: provectuslabs/kafka-ui
+  #   container_name: kafka-ui
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     KAFKA_CLUSTERS_0_NAME: 'Local Kafka Cluster'
+  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'broker:19092'
+  #     DYNAMIC_CONFIG_ENABLED: "true"
+  #   depends_on:
+  #     - broker
 
 
 volumes:
+  kong_data: {}
+  kong_prefix_vol:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  kong_tmp_vol:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
   postgres_user_db:
     driver: local
   postgres_product_db:
-    driver: local
+    driver: local 
   postgres_inventory_db:
-    driver: local
+    driver: local 
   postgres_order_db:
     driver: local
-  postgres_payment_db:  
+  postgres_payment_db:
     driver: local
-  postgres_notification_db:
+  postgres_notification_db: 
     driver: local
-    
+
 networks:
   default:
     driver: bridge
+
+secrets:
+  kong_postgres_password:
+    file: ./POSTGRES_PASSWORD
